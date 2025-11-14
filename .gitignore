@@ -19,6 +19,7 @@ go.work
 /frontend/node_modules
 /frontend/dist
 /frontend/.DS_Store
+/frontend/.env
 
 # IDE
 .vscode/

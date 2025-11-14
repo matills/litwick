@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -45,8 +46,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Public routes
-	app.Get("/", handlers.HealthCheck)
+	// Health check
 	app.Get("/health", handlers.HealthCheck)
 
 	// API routes
@@ -62,16 +62,38 @@ func main() {
 	dashboard.Use(middleware.AuthMiddleware())
 	dashboard.Get("/", handlers.GetDashboard)
 
+	// Upload route (protected)
+	upload := api.Group("/upload")
+	upload.Use(middleware.AuthMiddleware())
+	upload.Post("/", handlers.UploadFile)
+
 	// Transcription routes (protected)
 	transcriptions := api.Group("/transcriptions")
 	transcriptions.Use(middleware.AuthMiddleware())
 	transcriptions.Get("/", handlers.GetTranscriptions)
-	transcriptions.Post("/upload", handlers.UploadFile)
 	transcriptions.Post("/:id/process", handlers.ProcessTranscription)
 	transcriptions.Get("/:id", handlers.GetTranscription)
 	transcriptions.Put("/:id", handlers.UpdateTranscription)
 	transcriptions.Delete("/:id", handlers.DeleteTranscription)
 	transcriptions.Get("/:id/download", handlers.DownloadTranscription)
+
+	// Serve static files from frontend/dist
+	distPath := "./frontend/dist"
+
+	// Check if dist directory exists
+	if _, err := os.Stat(distPath); os.IsNotExist(err) {
+		log.Println("Warning: frontend/dist directory not found. Please build the frontend with 'cd frontend && npm run build'")
+	} else {
+		// Serve static files
+		app.Static("/", distPath)
+
+		// SPA fallback - serve index.html for all non-API routes
+		app.Use(func(c *fiber.Ctx) error {
+			// If the request is not for an API route and not a static file
+			// serve the index.html (for client-side routing)
+			return c.SendFile(distPath + "/index.html")
+		})
+	}
 
 	// Start server
 	port := config.AppConfig.Port

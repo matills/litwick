@@ -96,7 +96,7 @@ func UploadFile(c *fiber.Ctx) error {
 		FileName: file.Filename,
 		FileURL:  fileURL,
 		FileSize: file.Size,
-		Status:   models.StatusPending,
+		Status:   models.StatusProcessing,
 		Language: language,
 	}
 
@@ -106,8 +106,11 @@ func UploadFile(c *fiber.Ctx) error {
 		})
 	}
 
+	// Start transcription process in background
+	go processTranscriptionAsync(transcription.ID, user.ID)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message":       "file uploaded successfully",
+		"message":       "file uploaded successfully, transcription started",
 		"transcription": transcription,
 	})
 }
