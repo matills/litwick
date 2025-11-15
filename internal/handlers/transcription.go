@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -101,6 +102,15 @@ func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 	durationMinutes := (result.Duration / 1000) / 60
 	if durationMinutes == 0 {
 		durationMinutes = 1 // Minimum 1 minute
+	}
+
+	// Check plan limits
+	limits := user.GetPlanLimits()
+	if durationMinutes > limits.MaxMinutesPerFile {
+		transcription.Status = models.StatusFailed
+		transcription.ErrorMessage = fmt.Sprintf("file duration (%d min) exceeds plan limit (%d min per file)", durationMinutes, limits.MaxMinutesPerFile)
+		database.DB.Save(&transcription)
+		return
 	}
 
 	if !user.HasCredits(durationMinutes) {
@@ -308,9 +318,48 @@ func DeleteTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// TODO: Delete file from S3 (optional, can be done async)
+	// Delete file from Supabase Storage asynchronously
+	go deleteFileAsync(c.Context(), transcription.FileURL)
 
 	return c.JSON(fiber.Map{
 		"message": "transcription deleted successfully",
 	})
+}
+
+// deleteFileAsync deletes a file from Supabase Storage asynchronously
+func deleteFileAsync(ctx context.Context, fileURL string) {
+	// Extract file path from URL
+	// URL format: https://xxx.supabase.co/storage/v1/object/public/litwick-uploads/uploads/filename.ext
+	// We need: uploads/filename.ext
+
+	storageService, err := services.NewStorageService(ctx)
+	if err != nil {
+		// Log error but don't fail
+		fmt.Printf("Failed to initialize storage service: %v\n", err)
+		return
+	}
+
+	// Extract the path after the bucket name
+	// Split by bucket name to get the file path
+	parts := strings.Split(fileURL, "/storage/v1/object/public/")
+	if len(parts) < 2 {
+		fmt.Printf("Invalid file URL format: %s\n", fileURL)
+		return
+	}
+
+	// Get everything after the bucket name
+	// Format: litwick-uploads/uploads/filename.ext
+	pathWithBucket := parts[1]
+	pathParts := strings.SplitN(pathWithBucket, "/", 2)
+	if len(pathParts) < 2 {
+		fmt.Printf("Invalid file path format: %s\n", pathWithBucket)
+		return
+	}
+
+	filePath := pathParts[1] // uploads/filename.ext
+
+	if err := storageService.DeleteFile(ctx, filePath); err != nil {
+		// Log error but don't fail - file might already be deleted
+		fmt.Printf("Failed to delete file from storage: %v\n", err)
+	}
 }

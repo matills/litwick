@@ -1,43 +1,54 @@
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 
-const plans = [
+interface Plan {
+  name: string;
+  price: string;
+  credits: string;
+  popular?: boolean;
+  priceNote?: string;
+  features: string[];
+}
+
+const plans: Plan[] = [
   {
-    name: "Starter",
-    price: "9",
-    credits: "300",
+    name: "Free",
+    price: "0",
+    credits: "120",
     features: [
-      "300 minutos de transcripción",
-      "Hasta 10 idiomas",
-      "Exportar en .txt y .srt",
-      "Soporte por email"
+      "120 minutos/mes",
+      "Hasta 15 min por archivo",
+      "Formatos: TXT, SRT",
+      "Retención: 7 días"
     ]
   },
   {
     name: "Pro",
-    price: "29",
-    credits: "1200",
+    price: "15",
+    credits: "1800",
     popular: true,
     features: [
-      "1200 minutos de transcripción",
-      "50+ idiomas",
-      "Todos los formatos de exportación",
-      "Editor avanzado con IA",
-      "Múltiples speakers",
-      "Soporte prioritario"
+      "1,800 minutos/mes (30 horas)",
+      "Hasta 3 horas por archivo",
+      "Formatos: TXT, SRT, VTT, DOCX",
+      "Editor con timestamps editables",
+      "Retención: 90 días",
+      "Soporte por email"
     ]
   },
   {
-    name: "Enterprise",
-    price: "99",
-    credits: "5000",
+    name: "Team",
+    price: "20",
+    credits: "3000",
+    priceNote: "/persona (mín. 3)",
     features: [
-      "5000 minutos de transcripción",
-      "API access",
-      "Integración con YouTube/Vimeo",
-      "Plantillas personalizadas",
-      "Manager dedicado",
-      "SLA garantizado"
+      "3,000 minutos/persona/mes",
+      "Hasta 8 horas por archivo",
+      "Workspace compartido",
+      "Gestión de equipos y roles",
+      "Colaboración en transcripciones",
+      "Retención ilimitada",
+      "Soporte prioritario"
     ]
   }
 ];
@@ -75,7 +86,9 @@ export const Pricing = () => {
                 <h3 className="text-2xl font-bold text-foreground mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-bold text-foreground">${plan.price}</span>
-                  <span className="text-muted-foreground">/mes</span>
+                  <span className="text-muted-foreground">
+                    {plan.priceNote || '/mes'}
+                  </span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">{plan.credits} minutos incluidos</p>
               </div>
@@ -91,14 +104,14 @@ export const Pricing = () => {
                 ))}
               </ul>
 
-              <Button 
+              <Button
                 className={`w-full ${
-                  plan.popular 
-                    ? 'bg-accent hover:bg-accent/90 text-accent-foreground shadow-accent' 
+                  plan.popular
+                    ? 'bg-accent hover:bg-accent/90 text-accent-foreground shadow-accent'
                     : 'bg-primary hover:bg-primary/90'
                 }`}
               >
-                Comenzar ahora
+                {plan.name === 'Free' ? 'Comenzar gratis' : 'Comenzar ahora'}
               </Button>
             </div>
           ))}

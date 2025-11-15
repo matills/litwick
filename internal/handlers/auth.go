@@ -14,15 +14,23 @@ func GetMe(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get plan limits
+	limits := user.GetPlanLimits()
+
 	return c.JSON(fiber.Map{
 		"user": user,
+		"plan_limits": fiber.Map{
+			"monthly_minutes":        limits.MonthlyMinutes,
+			"max_minutes_per_file":   limits.MaxMinutesPerFile,
+			"max_file_uploads_month": limits.MaxFileUploadsMonth,
+		},
 	})
 }
 
 // HealthCheck returns the health status of the API
 func HealthCheck(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
-		"status": "ok",
+		"status":  "ok",
 		"message": "Litwick API is running",
 	})
 }

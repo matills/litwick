@@ -51,11 +51,30 @@ func UploadFile(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate file size (max 500MB)
-	maxSize := int64(500 * 1024 * 1024) // 500MB
+	// Get plan limits for the user
+	limits := user.GetPlanLimits()
+
+	// Validate file size based on plan
+	// Rough estimate: 1 minute of audio ≈ 1MB for MP3, so we use max minutes * 2MB as safety
+	maxSize := int64(limits.MaxMinutesPerFile * 2 * 1024 * 1024)
+	if maxSize > 500*1024*1024 {
+		maxSize = 500 * 1024 * 1024 // Hard limit at 500MB
+	}
+
 	if file.Size > maxSize {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "file too large (max 500MB)",
+			"error":       fmt.Sprintf("file too large for your plan (max %d minutes per file)", limits.MaxMinutesPerFile),
+			"max_size":    maxSize,
+			"plan":        user.Plan,
+			"max_minutes": limits.MaxMinutesPerFile,
+		})
+	}
+
+	// Check if user has any credits remaining
+	if user.CreditsRemaining <= 0 {
+		return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
+			"error":             "insufficient credits",
+			"credits_remaining": user.CreditsRemaining,
 		})
 	}
 

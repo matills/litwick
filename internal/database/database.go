@@ -38,6 +38,7 @@ func Migrate() error {
 
 	err := DB.AutoMigrate(
 		&models.User{},
+		&models.Team{},
 		&models.Transcription{},
 		&models.CreditTransaction{},
 	)
