@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Bell, Globe, AlertTriangle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
@@ -14,7 +14,14 @@ import { toast } from "sonner";
 
 const Settings = () => {
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const [defaultLanguage, setDefaultLanguage] = useState("es");
+  const [defaultExportFormat, setDefaultExportFormat] = useState("srt");
+  const [includeTimestamps, setIncludeTimestamps] = useState(true);
+  const [detectSpeakers, setDetectSpeakers] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [promotionalEmails, setPromotionalEmails] = useState(false);
 
   const { data: dashboardData } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -22,24 +29,42 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    // Get current user email from Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.email) {
         setEmail(session.user.email);
       }
     });
-  }, []);
 
-  const handleUpdateProfile = async () => {
-    setLoading(true);
-    try {
-      // TODO: Implement profile update
-      toast.success("Perfil actualizado correctamente");
-    } catch (error) {
-      toast.error("Error al actualizar el perfil");
-    } finally {
-      setLoading(false);
+    if (dashboardData?.user) {
+      setDefaultLanguage(dashboardData.user.default_language || "es");
+      setDefaultExportFormat(dashboardData.user.default_export_format || "srt");
+      setIncludeTimestamps(dashboardData.user.include_timestamps ?? true);
+      setDetectSpeakers(dashboardData.user.detect_speakers ?? true);
+      setEmailNotifications(dashboardData.user.email_notifications ?? true);
+      setPromotionalEmails(dashboardData.user.promotional_emails ?? false);
     }
+  }, [dashboardData]);
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: apiClient.updateSettings,
+    onSuccess: () => {
+      toast.success("Configuración guardada correctamente");
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+    onError: () => {
+      toast.error("Error al guardar la configuración");
+    },
+  });
+
+  const handleSaveSettings = async () => {
+    updateSettingsMutation.mutate({
+      default_language: defaultLanguage,
+      default_export_format: defaultExportFormat,
+      include_timestamps: includeTimestamps,
+      detect_speakers: detectSpeakers,
+      email_notifications: emailNotifications,
+      promotional_emails: promotionalEmails,
+    });
   };
 
   return (
@@ -52,7 +77,6 @@ const Settings = () => {
           </p>
         </div>
 
-        {/* Account Settings */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
@@ -110,7 +134,6 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Transcription Preferences */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
@@ -127,7 +150,7 @@ const Settings = () => {
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="language">Idioma predeterminado</Label>
-              <Select defaultValue="es">
+              <Select value={defaultLanguage} onValueChange={setDefaultLanguage}>
                 <SelectTrigger id="language">
                   <SelectValue />
                 </SelectTrigger>
@@ -143,7 +166,7 @@ const Settings = () => {
 
             <div className="grid gap-2">
               <Label htmlFor="format">Formato de exportación predeterminado</Label>
-              <Select defaultValue="srt">
+              <Select value={defaultExportFormat} onValueChange={setDefaultExportFormat}>
                 <SelectTrigger id="format">
                   <SelectValue />
                 </SelectTrigger>
@@ -151,7 +174,6 @@ const Settings = () => {
                   <SelectItem value="txt">Texto plano (.txt)</SelectItem>
                   <SelectItem value="srt">Subtítulos SRT (.srt)</SelectItem>
                   <SelectItem value="vtt">WebVTT (.vtt)</SelectItem>
-                  <SelectItem value="docx">Documento Word (.docx)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -163,7 +185,11 @@ const Settings = () => {
                   Agregar marcas de tiempo en las exportaciones
                 </p>
               </div>
-              <Switch id="timestamps" defaultChecked />
+              <Switch
+                id="timestamps"
+                checked={includeTimestamps}
+                onCheckedChange={setIncludeTimestamps}
+              />
             </div>
 
             <div className="flex items-center justify-between py-2">
@@ -173,12 +199,25 @@ const Settings = () => {
                   Identificar diferentes voces automáticamente
                 </p>
               </div>
-              <Switch id="speakers" defaultChecked />
+              <Switch
+                id="speakers"
+                checked={detectSpeakers}
+                onCheckedChange={setDetectSpeakers}
+              />
             </div>
+
+            <Separator />
+
+            <Button
+              onClick={handleSaveSettings}
+              disabled={updateSettingsMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              {updateSettingsMutation.isPending ? "Guardando..." : "Guardar preferencias"}
+            </Button>
           </div>
         </div>
 
-        {/* Notifications */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
@@ -200,7 +239,11 @@ const Settings = () => {
                   Recibir actualizaciones cuando se completen transcripciones
                 </p>
               </div>
-              <Switch id="email-notif" defaultChecked />
+              <Switch
+                id="email-notif"
+                checked={emailNotifications}
+                onCheckedChange={setEmailNotifications}
+              />
             </div>
 
             <div className="flex items-center justify-between py-2">
@@ -210,12 +253,25 @@ const Settings = () => {
                   Recibir novedades y ofertas especiales
                 </p>
               </div>
-              <Switch id="promo-notif" />
+              <Switch
+                id="promo-notif"
+                checked={promotionalEmails}
+                onCheckedChange={setPromotionalEmails}
+              />
             </div>
+
+            <Separator />
+
+            <Button
+              onClick={handleSaveSettings}
+              disabled={updateSettingsMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              {updateSettingsMutation.isPending ? "Guardando..." : "Guardar notificaciones"}
+            </Button>
           </div>
         </div>
 
-        {/* Danger Zone */}
         <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-6 space-y-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">

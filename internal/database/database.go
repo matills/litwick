@@ -40,6 +40,7 @@ func Migrate() error {
 		&models.User{},
 		&models.Transcription{},
 		&models.CreditTransaction{},
+		&models.Payment{},
 	)
 
 	if err != nil {

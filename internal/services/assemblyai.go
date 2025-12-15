@@ -26,13 +26,10 @@ type TranscriptionResult struct {
 	Error    string
 }
 
-// UploadFile uploads a file to AssemblyAI and returns the upload URL
 func (s *AssemblyAIService) UploadFile(ctx context.Context, fileURL string) (string, error) {
-	// If the file is already a URL (S3), AssemblyAI can access it directly
 	return fileURL, nil
 }
 
-// CreateTranscription creates a new transcription job
 func (s *AssemblyAIService) CreateTranscription(ctx context.Context, audioURL string, language string) (*TranscriptionResult, error) {
 	params := &aai.TranscriptOptionalParams{
 		LanguageCode: aai.TranscriptLanguageCode(language),
@@ -63,7 +60,6 @@ func (s *AssemblyAIService) CreateTranscription(ctx context.Context, audioURL st
 	return result, nil
 }
 
-// GetTranscription retrieves the status and result of a transcription
 func (s *AssemblyAIService) GetTranscription(ctx context.Context, transcriptID string) (*TranscriptionResult, error) {
 	transcript, err := s.client.Transcripts.Get(ctx, transcriptID)
 	if err != nil {
@@ -90,7 +86,6 @@ func (s *AssemblyAIService) GetTranscription(ctx context.Context, transcriptID s
 	return result, nil
 }
 
-// GetSRT exports the transcription as SRT subtitles
 func (s *AssemblyAIService) GetSRT(ctx context.Context, transcriptID string) (string, error) {
 	srt, err := s.client.Transcripts.GetSubtitles(ctx, transcriptID, aai.SubtitleFormat("srt"), nil)
 	if err != nil {
@@ -99,7 +94,14 @@ func (s *AssemblyAIService) GetSRT(ctx context.Context, transcriptID string) (st
 	return string(srt), nil
 }
 
-// WaitForCompletion polls the transcription until it's completed or failed
+func (s *AssemblyAIService) GetVTT(ctx context.Context, transcriptID string) (string, error) {
+	vtt, err := s.client.Transcripts.GetSubtitles(ctx, transcriptID, aai.SubtitleFormat("vtt"), nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VTT: %w", err)
+	}
+	return string(vtt), nil
+}
+
 func (s *AssemblyAIService) WaitForCompletion(ctx context.Context, transcriptID string, maxWait time.Duration) (*TranscriptionResult, error) {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
@@ -124,7 +126,6 @@ func (s *AssemblyAIService) WaitForCompletion(ctx context.Context, transcriptID 
 			case "error":
 				return result, fmt.Errorf("transcription failed: %s", result.Error)
 			}
-			// Continue polling for "queued" and "processing" statuses
 		}
 	}
 }

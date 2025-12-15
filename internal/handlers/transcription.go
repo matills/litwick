@@ -13,7 +13,6 @@ import (
 	"github.com/matills/litwick/internal/services"
 )
 
-// ProcessTranscription starts the transcription process with AssemblyAI
 func ProcessTranscription(c *fiber.Ctx) error {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -22,7 +21,6 @@ func ProcessTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get transcription ID from URL
 	transcriptionID := c.Params("id")
 	tid, err := uuid.Parse(transcriptionID)
 	if err != nil {
@@ -31,7 +29,6 @@ func ProcessTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get transcription from database
 	var transcription models.Transcription
 	if err := database.DB.Where("id = ? AND user_id = ?", tid, user.ID).First(&transcription).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -39,18 +36,15 @@ func ProcessTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if already processing or completed
 	if transcription.Status != models.StatusPending {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("transcription already %s", transcription.Status),
 		})
 	}
 
-	// Update status to processing
 	transcription.Status = models.StatusProcessing
 	database.DB.Save(&transcription)
 
-	// Start transcription in background
 	go processTranscriptionAsync(transcription.ID, user.ID)
 
 	return c.JSON(fiber.Map{
@@ -59,7 +53,6 @@ func ProcessTranscription(c *fiber.Ctx) error {
 	})
 }
 
-// processTranscriptionAsync handles the async transcription process
 func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 	ctx := context.Background()
 
@@ -73,10 +66,8 @@ func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 		return
 	}
 
-	// Initialize AssemblyAI service
 	aaiService := services.NewAssemblyAIService()
 
-	// Create transcription
 	result, err := aaiService.CreateTranscription(ctx, transcription.FileURL, transcription.Language)
 	if err != nil {
 		transcription.Status = models.StatusFailed
@@ -88,7 +79,6 @@ func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 	transcription.AssemblyAIID = result.ID
 	database.DB.Save(&transcription)
 
-	// Wait for completion (max 30 minutes)
 	result, err = aaiService.WaitForCompletion(ctx, result.ID, 30*time.Minute)
 	if err != nil {
 		transcription.Status = models.StatusFailed
@@ -97,10 +87,9 @@ func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 		return
 	}
 
-	// Calculate duration in minutes and check credits
 	durationMinutes := (result.Duration / 1000) / 60
 	if durationMinutes == 0 {
-		durationMinutes = 1 // Minimum 1 minute
+		durationMinutes = 1
 	}
 
 	if !user.HasCredits(durationMinutes) {
@@ -110,28 +99,29 @@ func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 		return
 	}
 
-	// Get SRT content
 	srtContent, err := aaiService.GetSRT(ctx, result.ID)
 	if err != nil {
-		// Continue even if SRT fails
 		srtContent = ""
 	}
 
-	// Update transcription
+	vttContent, err := aaiService.GetVTT(ctx, result.ID)
+	if err != nil {
+		vttContent = ""
+	}
+
 	now := time.Now()
 	transcription.Status = models.StatusCompleted
 	transcription.TranscriptText = &result.Text
 	transcription.SRTContent = &srtContent
+	transcription.VTTContent = &vttContent
 	transcription.Duration = result.Duration / 1000 // Convert to seconds
 	transcription.CreditsUsed = durationMinutes
 	transcription.CompletedAt = &now
 	database.DB.Save(&transcription)
 
-	// Deduct credits from user
 	user.DeductCredits(durationMinutes)
 	database.DB.Save(&user)
 
-	// Create credit transaction record
 	transaction := models.CreditTransaction{
 		UserID:          user.ID,
 		TranscriptionID: &transcription.ID,
@@ -144,7 +134,6 @@ func processTranscriptionAsync(transcriptionID, userID uuid.UUID) {
 	database.DB.Create(&transaction)
 }
 
-// GetTranscription returns a single transcription
 func GetTranscription(c *fiber.Ctx) error {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -171,7 +160,6 @@ func GetTranscription(c *fiber.Ctx) error {
 	return c.JSON(transcription)
 }
 
-// DownloadTranscription returns transcription in requested format
 func DownloadTranscription(c *fiber.Ctx) error {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -188,7 +176,7 @@ func DownloadTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	format := c.Query("format", "txt") // txt, srt
+	format := c.Query("format", "txt")
 
 	var transcription models.Transcription
 	if err := database.DB.Where("id = ? AND user_id = ?", tid, user.ID).First(&transcription).Error; err != nil {
@@ -214,6 +202,12 @@ func DownloadTranscription(c *fiber.Ctx) error {
 		}
 		contentType = "application/x-subrip"
 		filename = fmt.Sprintf("%s.srt", transcription.FileName)
+	case "vtt":
+		if transcription.VTTContent != nil {
+			content = *transcription.VTTContent
+		}
+		contentType = "text/vtt"
+		filename = fmt.Sprintf("%s.vtt", transcription.FileName)
 	case "txt":
 		fallthrough
 	default:
@@ -230,7 +224,6 @@ func DownloadTranscription(c *fiber.Ctx) error {
 	return c.SendString(content)
 }
 
-// UpdateTranscription allows editing the transcript text
 func UpdateTranscription(c *fiber.Ctx) error {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -254,7 +247,6 @@ func UpdateTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// Parse request body
 	type UpdateRequest struct {
 		TranscriptText string `json:"transcript_text"`
 	}
@@ -266,7 +258,6 @@ func UpdateTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update transcript
 	transcription.TranscriptText = &req.TranscriptText
 	if err := database.DB.Save(&transcription).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -277,7 +268,6 @@ func UpdateTranscription(c *fiber.Ctx) error {
 	return c.JSON(transcription)
 }
 
-// DeleteTranscription deletes a transcription
 func DeleteTranscription(c *fiber.Ctx) error {
 	user := middleware.GetUser(c)
 	if user == nil {
@@ -301,14 +291,26 @@ func DeleteTranscription(c *fiber.Ctx) error {
 		})
 	}
 
-	// Delete from database
 	if err := database.DB.Delete(&transcription).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to delete transcription",
 		})
 	}
 
-	// TODO: Delete file from S3 (optional, can be done async)
+	go func() {
+		ctx := context.Background()
+		storageService, err := services.NewStorageService(ctx)
+		if err != nil {
+			fmt.Printf("Failed to initialize storage service: %v\n", err)
+			return
+		}
+
+		filePath := storageService.ExtractFilePathFromURL(transcription.FileURL)
+
+		if err := storageService.DeleteFile(ctx, filePath); err != nil {
+			fmt.Printf("Failed to delete file from storage: %v\n", err)
+		}
+	}()
 
 	return c.JSON(fiber.Map{
 		"message": "transcription deleted successfully",

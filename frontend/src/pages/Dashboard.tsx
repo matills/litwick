@@ -7,16 +7,13 @@ const Dashboard = () => {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Stats */}
         <StatsCards />
 
-        {/* Upload Zone */}
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Nueva Transcripción</h2>
           <UploadZone />
         </div>
 
-        {/* Transcriptions List */}
         <TranscriptionsList />
       </div>
     </DashboardLayout>

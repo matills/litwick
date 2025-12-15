@@ -2,37 +2,18 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Flame, TrendingUp, Clock, Download, CheckCircle2 } from "lucide-react";
+import { Flame, TrendingUp, Clock, CheckCircle2, Sparkles } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-
-const plans = [
-  {
-    name: "Pack 500 min",
-    credits: "500",
-    price: "15",
-    popular: false
-  },
-  {
-    name: "Pack 1500 min",
-    credits: "1500",
-    price: "39",
-    popular: true,
-    discount: "Ahorra 20%"
-  },
-  {
-    name: "Pack 5000 min",
-    credits: "5000",
-    price: "99",
-    popular: false,
-    discount: "Ahorra 35%"
-  }
-];
+import { toast } from "sonner";
+import { useEffect } from "react";
 
 const Credits = () => {
+  const queryClient = useQueryClient();
+
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: apiClient.getDashboard,
@@ -43,8 +24,20 @@ const Credits = () => {
     queryFn: apiClient.getTranscriptions,
   });
 
+  const { data: packagesData } = useQuery({
+    queryKey: ['credit-packages'],
+    queryFn: apiClient.getCreditPackages,
+  });
+
+  const { data: paymentsData } = useQuery({
+    queryKey: ['payment-history'],
+    queryFn: apiClient.getPaymentHistory,
+  });
+
   const stats = dashboardData?.stats;
   const transcriptions = transcriptionsData?.transcriptions || [];
+  const packages = packagesData?.packages || [];
+  const payments = paymentsData?.payments || [];
 
   // Calculate real stats from transcriptions
   const completedTranscriptions = transcriptions.filter((t: any) => t.status === 'completed');
@@ -57,6 +50,51 @@ const Credits = () => {
   const avgMinutes = completedTranscriptions.length > 0
     ? Math.round(totalMinutesUsed / completedTranscriptions.length)
     : 0;
+
+  // Check for payment status in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const paymentId = params.get('payment_id');
+
+    if (status && paymentId) {
+      // Process payment success/failure
+      apiClient.processPaymentSuccess(params)
+        .then((data) => {
+          if (status === 'success' || status === 'approved') {
+            toast.success(`¡Pago exitoso! Se agregaron ${data.payment.credits_amount} créditos a tu cuenta`);
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['payment-history'] });
+          } else if (status === 'failure' || status === 'rejected') {
+            toast.error('El pago fue rechazado. Por favor intenta nuevamente.');
+          } else if (status === 'pending') {
+            toast.info('Tu pago está pendiente de aprobación.');
+          }
+          // Clean URL
+          window.history.replaceState({}, '', '/credits');
+        })
+        .catch((err) => {
+          console.error('Error processing payment:', err);
+          toast.error('Error al procesar el pago');
+        });
+    }
+  }, [queryClient]);
+
+  // Mutation to create payment
+  const createPaymentMutation = useMutation({
+    mutationFn: apiClient.createPayment,
+    onSuccess: (data) => {
+      // Redirect to MercadoPago checkout
+      window.location.href = data.init_point;
+    },
+    onError: () => {
+      toast.error("Error al crear el pago. Por favor intenta nuevamente.");
+    },
+  });
+
+  const handleBuyPackage = (packageId: string) => {
+    createPaymentMutation.mutate(packageId);
+  };
 
   if (isLoading) {
     return (
@@ -149,50 +187,122 @@ const Credits = () => {
             <p className="text-muted-foreground">Elige el pack que mejor se ajuste a tus necesidades</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {plans.map((plan, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {packages.map((pkg: any) => (
               <div
-                key={index}
+                key={pkg.id}
                 className={`relative p-6 border rounded-xl transition-all hover:shadow-medium ${
-                  plan.popular
+                  pkg.popular
                     ? "border-accent bg-accent/5"
                     : "border-border hover:border-accent/30"
                 }`}
               >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded-full">
+                {pkg.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded-full flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
                     Más popular
                   </div>
                 )}
 
                 <div className="text-center mb-4">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">{plan.name}</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">{pkg.name}</h3>
+                  <p className="text-xs text-muted-foreground mb-3">{pkg.description}</p>
                   <div className="flex items-baseline justify-center gap-1 mb-1">
-                    <span className="text-3xl font-bold text-foreground">${plan.price}</span>
+                    <span className="text-3xl font-bold text-foreground">
+                      ${pkg.price.toLocaleString('es-AR')}
+                    </span>
                   </div>
-                  {plan.discount && (
-                    <span className="text-xs text-accent font-medium">{plan.discount}</span>
+                  {pkg.discount > 0 && (
+                    <span className="text-xs text-accent font-medium">
+                      Ahorrás {pkg.discount}%
+                    </span>
                   )}
                 </div>
 
-                <div className="mb-6 text-center">
-                  <p className="text-2xl font-bold text-foreground">{plan.credits}</p>
+                <div className="mb-6 text-center py-3 bg-secondary/50 rounded-lg">
+                  <p className="text-2xl font-bold text-foreground">{pkg.credits}</p>
                   <p className="text-sm text-muted-foreground">minutos</p>
                 </div>
 
                 <Button
                   className={`w-full ${
-                    plan.popular
+                    pkg.popular
                       ? "bg-accent hover:bg-accent/90 text-accent-foreground"
                       : "bg-primary hover:bg-primary/90"
                   }`}
+                  onClick={() => handleBuyPackage(pkg.id)}
+                  disabled={createPaymentMutation.isPending}
                 >
-                  Comprar ahora
+                  {createPaymentMutation.isPending ? "Procesando..." : "Comprar ahora"}
                 </Button>
               </div>
             ))}
           </div>
+
+          <div className="bg-secondary/30 rounded-lg p-4 text-sm text-muted-foreground">
+            <p className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-accent" />
+              Los créditos se agregan automáticamente después del pago confirmado
+            </p>
+          </div>
         </div>
+
+        {/* Payment History */}
+        {payments.length > 0 && (
+          <div className="bg-card border border-border rounded-xl p-6 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Historial de pagos</h2>
+              <p className="text-muted-foreground">Tus compras de créditos</p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              {payments.slice(0, 10).map((payment: any) => (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      payment.status === 'approved' ? 'bg-green-500/10' :
+                      payment.status === 'pending' ? 'bg-orange-500/10' : 'bg-red-500/10'
+                    }`}>
+                      <CheckCircle2 className={`w-5 h-5 ${
+                        payment.status === 'approved' ? 'text-green-500' :
+                        payment.status === 'pending' ? 'text-orange-500' : 'text-red-500'
+                      }`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{payment.package_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(payment.created_at), "dd MMM yyyy, HH:mm", { locale: es })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-foreground">
+                        ${payment.amount.toLocaleString('es-AR')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        +{payment.credits_amount} min
+                      </p>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${
+                      payment.status === 'approved' ? 'bg-green-500/10 text-green-500' :
+                      payment.status === 'pending' ? 'bg-orange-500/10 text-orange-500' :
+                      'bg-red-500/10 text-red-500'
+                    }`}>
+                      {payment.status === 'approved' ? 'Aprobado' :
+                       payment.status === 'pending' ? 'Pendiente' : 'Rechazado'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Usage History */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-6">
@@ -224,7 +334,7 @@ const Credits = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-semibold text-foreground">{item.credits_used} min</span>
+                    <span className="text-sm font-semibold text-foreground">-{item.credits_used} min</span>
                     <div className="w-2 h-2 bg-green-500 rounded-full" />
                   </div>
                 </div>

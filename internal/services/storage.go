@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,20 +28,16 @@ func NewStorageService(ctx context.Context) (*StorageService, error) {
 	}, nil
 }
 
-// UploadFile uploads a file to Supabase Storage and returns the public URL
 func (s *StorageService) UploadFile(ctx context.Context, file io.Reader, filename string, contentType string) (string, error) {
-	// Generate unique filename
 	ext := filepath.Ext(filename)
 	uniqueFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 	path := fmt.Sprintf("uploads/%s", uniqueFilename)
 
-	// Read file content
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Upload to Supabase Storage
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.supabaseURL, s.bucket, path)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(fileBytes))
 	if err != nil {
@@ -62,16 +59,12 @@ func (s *StorageService) UploadFile(ctx context.Context, file io.Reader, filenam
 		return "", fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Generate public URL
 	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", s.supabaseURL, s.bucket, path)
 
 	return publicURL, nil
 }
 
-// GetPresignedURL generates a signed URL for downloading a file (for private buckets)
 func (s *StorageService) GetPresignedURL(ctx context.Context, key string, duration time.Duration) (string, error) {
-	// For Supabase, if the bucket is public, we just return the public URL
-	// If it's private, we'd need to create a signed URL
 	url := fmt.Sprintf("%s/storage/v1/object/sign/%s/%s?expiresIn=%d",
 		s.supabaseURL,
 		s.bucket,
@@ -98,14 +91,10 @@ func (s *StorageService) GetPresignedURL(ctx context.Context, key string, durati
 		return "", fmt.Errorf("failed to generate signed URL with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Read and return the signed URL response
 	body, _ := io.ReadAll(resp.Body)
-	// In production, you'd want to parse the JSON response properly
-	// For now, return the raw response body which contains the signed URL
 	return string(body), nil
 }
 
-// DeleteFile deletes a file from Supabase Storage
 func (s *StorageService) DeleteFile(ctx context.Context, key string) error {
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.supabaseURL, s.bucket, key)
 
@@ -129,4 +118,10 @@ func (s *StorageService) DeleteFile(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+func (s *StorageService) ExtractFilePathFromURL(fileURL string) string {
+	prefix := fmt.Sprintf("%s/storage/v1/object/public/%s/", s.supabaseURL, s.bucket)
+	path := strings.TrimPrefix(fileURL, prefix)
+	return path
 }

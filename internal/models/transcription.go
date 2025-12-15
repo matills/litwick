@@ -29,6 +29,7 @@ type Transcription struct {
 	TranscriptText   *string             `gorm:"type:text" json:"transcript_text,omitempty"`
 	TranscriptJSON   *string             `gorm:"type:jsonb" json:"transcript_json,omitempty"` // Full AssemblyAI response
 	SRTContent       *string             `gorm:"type:text" json:"srt_content,omitempty"`
+	VTTContent       *string             `gorm:"type:text" json:"vtt_content,omitempty"`
 	ErrorMessage     string              `json:"error_message,omitempty"`
 	Language         string              `gorm:"default:'es'" json:"language"` // detected or specified language
 	CreditsUsed      int                 `json:"credits_used"`                 // minutes of audio processed

@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
+import { useState } from "react";
+import { AuthModal } from "./AuthModal";
 
 const plans = [
   {
@@ -43,17 +45,20 @@ const plans = [
 ];
 
 export const Pricing = () => {
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   return (
-    <section className="py-24 bg-secondary/30">
-      <div className="container px-4 mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Planes que se ajustan a ti
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Comienza gratis y escala según tus necesidades. Sin compromisos.
-          </p>
-        </div>
+    <>
+      <section className="py-24 bg-secondary/30">
+        <div className="container px-4 mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+              Planes que se ajustan a ti
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Comienza gratis y escala según tus necesidades. Sin compromisos.
+            </p>
+          </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
@@ -91,12 +96,13 @@ export const Pricing = () => {
                 ))}
               </ul>
 
-              <Button 
+              <Button
                 className={`w-full ${
-                  plan.popular 
-                    ? 'bg-accent hover:bg-accent/90 text-accent-foreground shadow-accent' 
+                  plan.popular
+                    ? 'bg-accent hover:bg-accent/90 text-accent-foreground shadow-accent'
                     : 'bg-primary hover:bg-primary/90'
                 }`}
+                onClick={() => setAuthModalOpen(true)}
               >
                 Comenzar ahora
               </Button>
@@ -105,5 +111,8 @@ export const Pricing = () => {
         </div>
       </div>
     </section>
+
+    <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+    </>
   );
 };

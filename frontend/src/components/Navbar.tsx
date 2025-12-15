@@ -33,16 +33,16 @@ export const Navbar = () => {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                className="text-foreground hover:text-accent"
+                className="text-foreground hover:text-accent hover:bg-secondary/50"
                 onClick={() => setAuthModalOpen(true)}
               >
-                Iniciar Sesión
+                <span className="font-medium">Iniciar Sesión</span>
               </Button>
               <Button
                 className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-accent"
                 onClick={() => setAuthModalOpen(true)}
               >
-                Comenzar Gratis
+                <span className="font-medium">Comenzar Gratis</span>
               </Button>
             </div>
           </div>
