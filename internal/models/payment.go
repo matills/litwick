@@ -20,15 +20,15 @@ type Payment struct {
 	ID                   uuid.UUID     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	UserID               uuid.UUID     `gorm:"type:uuid;not null;index" json:"user_id"`
 	User                 User          `gorm:"foreignKey:UserID" json:"-"`
-	MercadoPagoPaymentID string        `gorm:"index" json:"mercadopago_payment_id,omitempty"` // ID del pago en MercadoPago
-	PreferenceID         string        `json:"preference_id,omitempty"`                        // ID de la preferencia de pago
+	MercadoPagoPaymentID *string       `gorm:"index" json:"mercadopago_payment_id,omitempty"`
+	PreferenceID         *string       `json:"preference_id,omitempty"`
 	Status               PaymentStatus `gorm:"default:'pending'" json:"status"`
-	Amount               float64       `json:"amount"`           // Monto en pesos/dólares
-	Currency             string        `gorm:"default:'ARS'" json:"currency"` // ARS, USD, etc.
-	CreditsAmount        int           `json:"credits_amount"`   // Cantidad de créditos (minutos)
-	PackageName          string        `json:"package_name"`     // Nombre del paquete comprado
-	PaymentMethod        string        `json:"payment_method,omitempty"` // Método de pago usado
-	PaymentDetails       *string       `gorm:"type:jsonb" json:"payment_details,omitempty"` // Detalles completos del pago (nullable)
+	Amount               float64       `json:"amount"`
+	Currency             string        `gorm:"default:'ARS'" json:"currency"`
+	CreditsAmount        int           `json:"credits_amount"`
+	PackageName          string        `json:"package_name"`
+	PaymentMethod        *string       `json:"payment_method,omitempty"`
+	PaymentDetails       *string       `gorm:"type:jsonb" json:"payment_details,omitempty"`
 	CreatedAt            time.Time     `json:"created_at"`
 	UpdatedAt            time.Time     `json:"updated_at"`
 	CompletedAt          *time.Time    `json:"completed_at,omitempty"`
@@ -41,60 +41,58 @@ func (p *Payment) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// CreditPackage represents a package of credits that can be purchased
 type CreditPackage struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
-	Credits     int     `json:"credits"`      // Minutes of transcription
-	Price       float64 `json:"price"`        // Price in local currency
-	Currency    string  `json:"currency"`     // ARS, USD, etc.
-	Popular     bool    `json:"popular"`      // Highlight as popular
-	Discount    int     `json:"discount"`     // Discount percentage (0-100)
+	Credits     int     `json:"credits"`
+	Price       float64 `json:"price"`
+	Currency    string  `json:"currency"`
+	Popular     bool    `json:"popular"`
+	Discount    int     `json:"discount"`
 }
 
-// GetCreditPackages returns available credit packages
 func GetCreditPackages() []CreditPackage {
 	return []CreditPackage{
 		{
-			ID:          "starter",
-			Name:        "Starter",
+			ID:          "basic",
+			Name:        "Básico",
 			Description: "Perfecto para empezar",
-			Credits:     120,  // 2 horas
-			Price:       2999, // $2999 ARS
-			Currency:    "ARS",
+			Credits:     120,
+			Price:       5,
+			Currency:    "USD",
 			Popular:     false,
 			Discount:    0,
 		},
 		{
-			ID:          "professional",
-			Name:        "Professional",
+			ID:          "standard",
+			Name:        "Estándar",
 			Description: "Ideal para uso regular",
-			Credits:     600,  // 10 horas
-			Price:       12999, // $12999 ARS
-			Currency:    "ARS",
+			Credits:     300,
+			Price:       10,
+			Currency:    "USD",
 			Popular:     true,
-			Discount:    15,
+			Discount:    17,
 		},
 		{
-			ID:          "business",
-			Name:        "Business",
-			Description: "Para equipos y empresas",
-			Credits:     1800,  // 30 horas
-			Price:       34999, // $34999 ARS
-			Currency:    "ARS",
+			ID:          "premium",
+			Name:        "Premium",
+			Description: "Para usuarios frecuentes",
+			Credits:     600,
+			Price:       18,
+			Currency:    "USD",
 			Popular:     false,
 			Discount:    25,
 		},
 		{
-			ID:          "enterprise",
-			Name:        "Enterprise",
-			Description: "Máximo rendimiento",
-			Credits:     6000,  // 100 horas
-			Price:       99999, // $99999 ARS
-			Currency:    "ARS",
+			ID:          "max",
+			Name:        "Max",
+			Description: "Máxima capacidad",
+			Credits:     1500,
+			Price:       40,
+			Currency:    "USD",
 			Popular:     false,
-			Discount:    35,
+			Discount:    33,
 		},
 	}
 }

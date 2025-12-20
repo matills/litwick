@@ -9,10 +9,15 @@ import { apiClient } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { PaymentModal } from "@/components/PaymentModal";
 
 const Credits = () => {
   const queryClient = useQueryClient();
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [initPoint, setInitPoint] = useState<string | null>(null);
 
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -84,16 +89,29 @@ const Credits = () => {
   const createPaymentMutation = useMutation({
     mutationFn: apiClient.createPayment,
     onSuccess: (data) => {
-      // Redirect to MercadoPago checkout
-      window.location.href = data.init_point;
+      // Open modal with preference_id and init_point
+      setPreferenceId(data.preference_id);
+      setInitPoint(data.init_point);
+      setPaymentModalOpen(true);
     },
     onError: () => {
       toast.error("Error al crear el pago. Por favor intenta nuevamente.");
     },
   });
 
-  const handleBuyPackage = (packageId: string) => {
-    createPaymentMutation.mutate(packageId);
+  const handleBuyPackage = (pkg: any) => {
+    setSelectedPackage(pkg);
+    createPaymentMutation.mutate(pkg.id);
+  };
+
+  const handleCloseModal = () => {
+    setPaymentModalOpen(false);
+    setPreferenceId(null);
+    setInitPoint(null);
+    setSelectedPackage(null);
+    // Refresh data when modal closes
+    queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['payment-history'] });
   };
 
   if (isLoading) {
@@ -230,7 +248,7 @@ const Credits = () => {
                       ? "bg-accent hover:bg-accent/90 text-accent-foreground"
                       : "bg-primary hover:bg-primary/90"
                   }`}
-                  onClick={() => handleBuyPackage(pkg.id)}
+                  onClick={() => handleBuyPackage(pkg)}
                   disabled={createPaymentMutation.isPending}
                 >
                   {createPaymentMutation.isPending ? "Procesando..." : "Comprar ahora"}
@@ -346,6 +364,18 @@ const Credits = () => {
             )}
           </div>
         </div>
+
+        {/* Payment Modal */}
+        <PaymentModal
+          open={paymentModalOpen}
+          onOpenChange={handleCloseModal}
+          preferenceId={preferenceId}
+          initPoint={initPoint}
+          packageName={selectedPackage?.name}
+          packagePrice={selectedPackage?.price}
+          packageCredits={selectedPackage?.credits}
+          packageId={selectedPackage?.id}
+        />
       </div>
     </DashboardLayout>
   );

@@ -12,9 +12,7 @@ export const Navbar = () => {
         <div className="container px-4 mx-auto">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center shadow-lg">
-                <Flame className="w-6 h-6 text-white" />
-              </div>
+              <Flame className="w-10 h-10 text-primary" strokeWidth={2} />
               <span className="text-xl font-bold text-foreground">Litwick</span>
             </div>
 

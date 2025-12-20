@@ -1,4 +1,4 @@
-import { FileAudio, Languages, Download, Clock, Wand2, Users } from "lucide-react";
+import { FileAudio, Languages, Download, Clock, Zap, Shield } from "lucide-react";
 
 const features = [
   {
@@ -8,28 +8,28 @@ const features = [
   },
   {
     icon: Clock,
-    title: "Timestamps Precisos",
-    description: "Cada palabra con su tiempo exacto. Ideal para subtítulos y navegación."
+    title: "Transcripción Rápida",
+    description: "Procesa tus archivos en minutos con tecnología de IA de última generación."
   },
   {
     icon: Languages,
-    title: "50+ Idiomas",
-    description: "Transcribe y traduce en más de 50 idiomas con precisión nativa."
-  },
-  {
-    icon: Wand2,
-    title: "Editor Inteligente",
-    description: "Correcciones en tiempo real con sugerencias automáticas de IA."
-  },
-  {
-    icon: Users,
-    title: "Múltiples Speakers",
-    description: "Detección automática de diferentes voces en la conversación."
+    title: "Múltiples Idiomas",
+    description: "Transcribe audio en diversos idiomas con alta precisión."
   },
   {
     icon: Download,
-    title: "Exportación Flexible",
-    description: "Descarga en .txt, .srt, .vtt, .docx y más formatos."
+    title: "Exportación Simple",
+    description: "Descarga tus transcripciones en formato .txt y .srt para subtítulos."
+  },
+  {
+    icon: Zap,
+    title: "Procesamiento Automático",
+    description: "Sube tu archivo y deja que la IA haga el trabajo pesado por ti."
+  },
+  {
+    icon: Shield,
+    title: "Seguro y Privado",
+    description: "Tus archivos están protegidos y solo tú tienes acceso a tus transcripciones."
   }
 ];
 

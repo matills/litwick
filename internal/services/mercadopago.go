@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/mercadopago/sdk-go/pkg/config"
 	"github.com/mercadopago/sdk-go/pkg/preference"
@@ -25,9 +27,14 @@ func NewMercadoPagoService() *MercadoPagoService {
 	}
 }
 
-// CreatePreference creates a payment preference in MercadoPago
-func (s *MercadoPagoService) CreatePreference(ctx context.Context, pkg models.CreditPackage, userEmail string, paymentID string) (string, error) {
-	// Create preference request
+type PreferenceResponse struct {
+	InitPoint    string
+	PreferenceID string
+}
+
+func (s *MercadoPagoService) CreatePreference(ctx context.Context, pkg models.CreditPackage, userEmail string, paymentID string) (*PreferenceResponse, error) {
+	baseURL := appconfig.AppConfig.FrontendURL + "/credits"
+
 	request := preference.Request{
 		Items: []preference.ItemRequest{
 			{
@@ -43,21 +50,32 @@ func (s *MercadoPagoService) CreatePreference(ctx context.Context, pkg models.Cr
 			Email: userEmail,
 		},
 		BackURLs: &preference.BackURLsRequest{
-			Success: appconfig.AppConfig.FrontendURL + "/credits?status=success",
-			Failure: appconfig.AppConfig.FrontendURL + "/credits?status=failure",
-			Pending: appconfig.AppConfig.FrontendURL + "/credits?status=pending",
+			Success: baseURL + "?payment_status=success",
+			Failure: baseURL + "?payment_status=failure",
+			Pending: baseURL + "?payment_status=pending",
 		},
-		AutoReturn:          "approved",
-		ExternalReference:   paymentID, // Our internal payment ID
+		BinaryMode:          true,
+		ExternalReference:   paymentID,
 		NotificationURL:     appconfig.AppConfig.WebhookURL + "/api/payments/webhook",
 		StatementDescriptor: "LITWICK - Créditos",
+		Purpose:             "wallet_purchase",
 	}
 
-	// Create preference
+	// Log the request for debugging
+	reqJSON, _ := json.MarshalIndent(request, "", "  ")
+	log.Printf("Creating MercadoPago preference with request: %s", string(reqJSON))
+
 	resp, err := s.client.Create(ctx, request)
 	if err != nil {
-		return "", fmt.Errorf("failed to create preference: %w", err)
+		log.Printf("MercadoPago preference creation failed: %v", err)
+		return nil, fmt.Errorf("failed to create preference: %w", err)
 	}
 
-	return resp.InitPoint, nil
+	// Log the response
+	log.Printf("MercadoPago preference created successfully: ID=%s, InitPoint=%s", resp.ID, resp.InitPoint)
+
+	return &PreferenceResponse{
+		InitPoint:    resp.InitPoint,
+		PreferenceID: resp.ID,
+	}, nil
 }

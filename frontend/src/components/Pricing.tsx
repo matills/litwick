@@ -5,41 +5,55 @@ import { AuthModal } from "./AuthModal";
 
 const plans = [
   {
-    name: "Starter",
-    price: "9",
-    credits: "300",
+    name: "Básico",
+    price: "5",
+    credits: "120",
+    discount: 0,
     features: [
-      "300 minutos de transcripción",
-      "Hasta 10 idiomas",
+      "120 minutos de transcripción",
+      "Múltiples idiomas",
       "Exportar en .txt y .srt",
       "Soporte por email"
     ]
   },
   {
-    name: "Pro",
-    price: "29",
-    credits: "1200",
+    name: "Estándar",
+    price: "10",
+    credits: "300",
+    discount: 17,
     popular: true,
     features: [
-      "1200 minutos de transcripción",
-      "50+ idiomas",
-      "Todos los formatos de exportación",
-      "Editor avanzado con IA",
-      "Múltiples speakers",
-      "Soporte prioritario"
+      "300 minutos de transcripción",
+      "Múltiples idiomas",
+      "Exportar en .txt y .srt",
+      "Soporte por email",
+      "Ahorrás 17%"
     ]
   },
   {
-    name: "Enterprise",
-    price: "99",
-    credits: "5000",
+    name: "Premium",
+    price: "18",
+    credits: "600",
+    discount: 25,
     features: [
-      "5000 minutos de transcripción",
-      "API access",
-      "Integración con YouTube/Vimeo",
-      "Plantillas personalizadas",
-      "Manager dedicado",
-      "SLA garantizado"
+      "600 minutos de transcripción",
+      "Múltiples idiomas",
+      "Exportar en .txt y .srt",
+      "Soporte por email",
+      "Ahorrás 25%"
+    ]
+  },
+  {
+    name: "Max",
+    price: "40",
+    credits: "1500",
+    discount: 33,
+    features: [
+      "1500 minutos de transcripción",
+      "Múltiples idiomas",
+      "Exportar en .txt y .srt",
+      "Soporte prioritario",
+      "Ahorrás 33%"
     ]
   }
 ];
@@ -53,14 +67,14 @@ export const Pricing = () => {
         <div className="container px-4 mx-auto">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Planes que se ajustan a ti
+              Paquetes de créditos
             </h2>
             <p className="text-lg text-muted-foreground">
-              Comienza gratis y escala según tus necesidades. Sin compromisos.
+              Compra minutos cuando los necesites. Sin suscripciones, sin compromisos.
             </p>
           </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
           {plans.map((plan, index) => (
             <div 
               key={index}
@@ -80,9 +94,11 @@ export const Pricing = () => {
                 <h3 className="text-2xl font-bold text-foreground mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-bold text-foreground">${plan.price}</span>
-                  <span className="text-muted-foreground">/mes</span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">{plan.credits} minutos incluidos</p>
+                {plan.discount > 0 && (
+                  <p className="text-sm text-accent font-medium mt-1">Ahorrás {plan.discount}%</p>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">{plan.credits} minutos</p>
               </div>
 
               <ul className="space-y-4 mb-8">

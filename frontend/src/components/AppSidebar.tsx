@@ -32,9 +32,7 @@ export function AppSidebar() {
         {/* Logo */}
         <div className="h-16 border-b border-border flex items-center justify-center px-6">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
-              <Flame className="w-6 h-6 text-white" />
-            </div>
+            <Flame className="w-10 h-10 text-primary flex-shrink-0" strokeWidth={2} />
             {open && <span className="text-xl font-bold text-foreground">Litwick</span>}
           </div>
         </div>
